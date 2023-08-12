@@ -1,4 +1,3 @@
-function bao(N)
 %% Parameter Setting
 w=0.9;      % Inertia factor - influences the global and local search capability of PSO
 c1=2;       % Acceleration constant - affects convergence speed
