@@ -1,0 +1,127 @@
+function bao(N)
+%% Parameter Setting
+w=0.9;      % Inertia factor - influences the global and local search capability of PSO
+c1=2;       % Acceleration constant - affects convergence speed
+c2=2;       % Acceleration constant
+Dim=3;      % Dimension
+SwarmSize=10; % Swarm size (number of particles)
+ObjFun=@fmin; % Objective function handle
+MaxIter=N;     % Maximum number of iterations
+MinFit=0.001;  % Minimum fitness value
+Vmax=1;
+Vmin=-1;
+Ub=[10 10 10]; % Upper bound
+Lb=[0 0 0];    % Lower bound
+
+c3=2;
+eta=0.95;
+c=5;           % ratio between step and d0
+step=1;        % Step size
+
+%% Particle Swarm Initialization
+Range = ones(SwarmSize,1)*(Ub-Lb);
+Swarm = rand(SwarmSize,Dim).*Range + ones(SwarmSize,1)*Lb;  % Initializing the swarm
+VStep = rand(SwarmSize,Dim)*(Vmax-Vmin) + Vmin;             % Initializing velocity
+fSwarm = zeros(SwarmSize,1);
+for i=1:SwarmSize
+    fSwarm(i,:) = feval(ObjFun,Swarm(i,:));                 % Fitness value of the swarm
+end
+
+%% Individual and Global Extremes
+[bestf, bestindex]=min(fSwarm);
+zbest=Swarm(bestindex,:);   % Global best
+gbest=Swarm;                % Individual best
+fgbest=fSwarm;              % Individual best fitness
+fzbest=bestf;               % Global best fitness
+
+%% Iterative Optimization
+iter = 0;
+y_fitness = zeros(1,MaxIter);  % Pre-allocate matrix for performance 
+K_p = zeros(1,MaxIter);
+K_i = zeros(1,MaxIter);
+K_d = zeros(1,MaxIter);
+
+while( (iter < MaxIter) && (fzbest > MinFit) )
+    for j=1:SwarmSize
+        
+        d0=step/c;
+        dir(j,:)=rands(1,Dim); % Direction in k-dimensional space is random
+        dir(j,:)=dir(j,:)/(eps+norm(dir(j,:))); % Normalize direction vector
+        xleft(j,:)=Swarm(j,:)+dir(j,:)*d0/2;    % Random position on the left in space
+        fleft(j,:)=fmin(xleft(j,:));            % Function value at left position
+        xright(j,:)=Swarm(j,:)-dir(j,:)*d0/2;   % Position on the right
+        fright(j,:)=fmin(xright(j,:));          % Function value at right position
+        force_bas(j,:)=-dir(j,:)*sign(fleft(j,:)-fright(j,:));
+   
+        % Update velocity
+        VStep(j,:) = w*VStep(j,:) + c1*rand*(gbest(j,:) - Swarm(j,:)) + c2*rand*(zbest - Swarm(j,:)) + c3*rand*force_bas(j,:);
+        if VStep(j,:)>Vmax, VStep(j,:)=Vmax; end
+        if VStep(j,:)<Vmin, VStep(j,:)=Vmin; end
+        
+        % Update position
+        Swarm(j,:)=Swarm(j,:)+VStep(j,:);
+        for k=1:Dim
+            if Swarm(j,k)>Ub(k), Swarm(j,k)=Ub(k); end
+            if Swarm(j,k)<Lb(k), Swarm(j,k)=Lb(k); end
+        end
+        
+        % Fitness value
+        fSwarm(j,:) = feval(ObjFun,Swarm(j,:));
+        
+        % Update individual best
+        if fSwarm(j) < fgbest(j)
+            gbest(j,:) = Swarm(j,:);
+            fgbest(j) = fSwarm(j);
+        end
+        
+        % Update global best
+        if fSwarm(j) < fzbest
+            zbest = Swarm(j,:);
+            fzbest = fSwarm(j);
+        end
+    end 
+    
+    iter = iter+1;           % Update iteration count
+    y_fitness(1,iter) = fzbest;  % Prepare for plotting
+    K_p(1,iter) = zbest(1);
+    K_i(1,iter) = zbest(2);
+    K_d(1,iter) = zbest(3);
+end
+
+% At the end of your algorithm function, print the metrics
+zbest = PID(zbest);   % PID is your function
+fprintf('Settling time: %.2f\n', zbest.settling_time);
+fprintf('Overshoot: %.2f\n', zbest.overshoot);
+fprintf('Steady-state error: %.2f\n', zbest.steady_state_error);
+fprintf('Fitness value: %.2f\n', zbest.value);
+
+%% Plot Output
+figure(1)   % Plot the variation curve of the performance indicator ITAE
+plot(y_fitness,'LineWidth',2)
+title('ITAE error value of the optimal individual','fontsize',12);
+xlabel('Iteration count','fontsize',12); ylabel('ITAE error value','fontsize',12);
+set(gca,'Fontsize',12);
+
+figure(2)   % Plot the change curve of PID controller parameters
+plot(K_p,'LineWidth',2)
+hold on
+plot(K_i,'k','LineWidth',2)
+plot(K_d,'--r','LineWidth',2)
+title('Optimization curve of Kp, Ki, Kd','fontsize',12);
+xlabel('Iteration count','fontsize',12); ylabel('Parameter value','fontsize',12);
+set(gca,'Fontsize',12);
+legend('Kp','Ki','Kd');
+
+disp('Kp:')
+K_p(end)
+disp('Ki:')
+K_i(end)
+disp('Kd:')
+K_d(end)
+disp('ITAE error value:')
+y_fitness(end)
+
+
+
+
+
