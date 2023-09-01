@@ -11,6 +11,7 @@ Vmax=1;
 Vmin=-1;
 Ub=[10 10 10]; % Upper bound
 Lb=[0 0 0];    % Lower bound
+chaos_init = 0.7;  % Initial value for chaotic map
 
 c3=2;
 eta=0.95;
@@ -41,6 +42,12 @@ K_i = zeros(1,MaxIter);
 K_d = zeros(1,MaxIter);
 
 while( (iter < MaxIter) && (fzbest > MinFit) )
+    % Adaptive weights and constants
+    w = 0.9 - iter * 0.5 / MaxIter;
+    c1 = 2 + sin(iter * pi / MaxIter);
+    c2 = 2 - sin(iter * pi / MaxIter);
+    c3 = 2 - cos(iter * pi / MaxIter);
+
     for j=1:SwarmSize
         
         d0=step/c;
@@ -51,9 +58,13 @@ while( (iter < MaxIter) && (fzbest > MinFit) )
         xright(j,:)=Swarm(j,:)-dir(j,:)*d0/2;   % Position on the right
         fright(j,:)=fmin(xright(j,:));          % Function value at right position
         force_bas(j,:)=-dir(j,:)*sign(fleft(j,:)-fright(j,:));
-   
-        % Update velocity
-        VStep(j,:) = w*VStep(j,:) + c1*rand*(gbest(j,:) - Swarm(j,:)) + c2*rand*(zbest - Swarm(j,:)) + c3*rand*force_bas(j,:);
+        % Chaotic mapping
+        chaos_init = 4 * chaos_init * (1 - chaos_init);
+        chaos_factor = chaos_init;
+        
+        % Update velocity with chaotic mapping
+        VStep(j,:) = w*VStep(j,:) + c1*rand*(gbest(j,:) - Swarm(j,:)) + c2*rand*(zbest - Swarm(j,:)) + c3*rand*force_bas(j,:) + chaos_factor;
+
         if VStep(j,:)>Vmax, VStep(j,:)=Vmax; end
         if VStep(j,:)<Vmin, VStep(j,:)=Vmin; end
         
