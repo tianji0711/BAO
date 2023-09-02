@@ -1,10 +1,11 @@
+function AW_BAO(N)
 %% Parameter Setting
 w=0.9;      % Inertia factor - influences the global and local search capability of PSO
 c1=2;       % Acceleration constant - affects convergence speed
 c2=2;       % Acceleration constant
 Dim=3;      % Dimension
-SwarmSize=10; % Swarm size (number of particles)
-ObjFun=@fmin; % Objective function handle
+SwarmSize = 10; % Swarm size (number of particles)
+ObjFun=@PID; % Objective function handle
 MaxIter=N;     % Maximum number of iterations
 MinFit=0.001;  % Minimum fitness value
 Vmax=1;
@@ -12,7 +13,6 @@ Vmin=-1;
 Ub=[10 10 10]; % Upper bound
 Lb=[0 0 0];    % Lower bound
 chaos_init = 0.7;  % Initial value for chaotic map
-
 c3=2;
 eta=0.95;
 c=5;           % ratio between step and d0
@@ -33,7 +33,6 @@ zbest=Swarm(bestindex,:);   % Global best
 gbest=Swarm;                % Individual best
 fgbest=fSwarm;              % Individual best fitness
 fzbest=bestf;               % Global best fitness
-
 %% Iterative Optimization
 iter = 0;
 y_fitness = zeros(1,MaxIter);  % Pre-allocate matrix for performance 
@@ -43,13 +42,12 @@ K_d = zeros(1,MaxIter);
 
 while( (iter < MaxIter) && (fzbest > MinFit) )
     % Adaptive weights and constants
-    w = 0.9 - iter * 0.5 / MaxIter;
-    c1 = 2 + sin(iter * pi / MaxIter);
-    c2 = 2 - sin(iter * pi / MaxIter);
-    c3 = 2 - cos(iter * pi / MaxIter);
+    w = w - iter * 0.5 / MaxIter;
+    c1 = c1 + sin(iter * pi / MaxIter);
+    c2 = c2 - sin(iter * pi / MaxIter);
+    c3 = c3 - cos(iter * pi / MaxIter);
 
-    for j=1:SwarmSize
-        
+    for j=1:SwarmSize        
         d0=step/c;
         dir(j,:)=rands(1,Dim); % Direction in k-dimensional space is random
         dir(j,:)=dir(j,:)/(eps+norm(dir(j,:))); % Normalize direction vector
@@ -61,9 +59,9 @@ while( (iter < MaxIter) && (fzbest > MinFit) )
         % Chaotic mapping
         chaos_init = 4 * chaos_init * (1 - chaos_init);
         chaos_factor = chaos_init;
-        
-        % Update velocity with chaotic mapping
-        VStep(j,:) = w*VStep(j,:) + c1*rand*(gbest(j,:) - Swarm(j,:)) + c2*rand*(zbest - Swarm(j,:)) + c3*rand*force_bas(j,:) + chaos_factor;
+   
+        % Update velocity with adaptive weights, learning factors, and chaotic mapping
+        VStep(j,:) = w * VStep(j,:) + c1 * rand * (gbest(j,:) - Swarm(j,:)) + c2 * rand * (zbest - Swarm(j,:)) + c3 * rand * force_bas(j,:) + eta * chaos_factor;
 
         if VStep(j,:)>Vmax, VStep(j,:)=Vmax; end
         if VStep(j,:)<Vmin, VStep(j,:)=Vmin; end
@@ -98,40 +96,25 @@ while( (iter < MaxIter) && (fzbest > MinFit) )
     K_d(1,iter) = zbest(3);
 end
 
-% At the end of your algorithm function, print the metrics
-zbest = PID(zbest);   % PID is your function
-fprintf('Settling time: %.2f\n', zbest.settling_time);
-fprintf('Overshoot: %.2f\n', zbest.overshoot);
-fprintf('Steady-state error: %.2f\n', zbest.steady_state_error);
-fprintf('Fitness value: %.2f\n', zbest.value);
-
-%% Plot Output
-figure(1)   % Plot the variation curve of the performance indicator ITAE
+%% 绘图输出
+figure(1)      % 绘制性能指标ITAE的变化曲线
 plot(y_fitness,'LineWidth',2)
-title('ITAE error value of the optimal individual','fontsize',12);
-xlabel('Iteration count','fontsize',12); ylabel('ITAE error value','fontsize',12);
-set(gca,'Fontsize',12);
+title('最优个体适应值','fontsize',18);
+xlabel('迭代次数','fontsize',18);ylabel('适应值','fontsize',18);
+set(gca,'Fontsize',18);
 
-figure(2)   % Plot the change curve of PID controller parameters
-plot(K_p,'LineWidth',2)
-hold on
-plot(K_i,'k','LineWidth',2)
-plot(K_d,'--r','LineWidth',2)
-title('Optimization curve of Kp, Ki, Kd','fontsize',12);
-xlabel('Iteration count','fontsize',12); ylabel('Parameter value','fontsize',12);
-set(gca,'Fontsize',12);
-legend('Kp','Ki','Kd');
+figure(2)      % 绘制PID控制器参数变化曲线
+subplot(3,1,1)
+plot(K_p,'LineWidth',3)
+legend('Kp');
+set(gca,'Fontsize',10);
 
-disp('Kp:')
-K_p(end)
-disp('Ki:')
-K_i(end)
-disp('Kd:')
-K_d(end)
-disp('ITAE error value:')
-y_fitness(end)
+subplot(3,1,2)
+plot(K_i,'b','LineWidth',3)
+legend('Ki');
+set(gca,'Fontsize',10);
 
-
-
-
-
+subplot(3,1,3)
+plot(K_d,'r','LineWidth',3)
+legend('Kd');
+set(gca,'Fontsize',10);
